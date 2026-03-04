@@ -1,12 +1,19 @@
 import serial
 import csv
+import time
 
+
+telemetry_running = False
 
 
 def arduino_read():
 
     port = serial.Serial('COM3', 9600)  # Update with your serial port and baud rate
 
+
+
+def telem_control():
+    global telemetry_running
     while True:
         print("1 - Start Telemetry")
         print("2 - Stop Telemetry")
@@ -14,23 +21,37 @@ def arduino_read():
         choice = int(input("Enter your choice: "))
 
 
+
         if choice == 1:
             print("Starting telemetry...")
+            telemetry_running = True
             # Code to start telemetry
         elif choice == 2:
             print("Stopping telemetry...")
+            telemetry_running = False
+
             # Code to stop telemetry
         elif choice == 3:
             print("Saving log to CSV...")
+            timestamp = time.time()  # Example of getting the current timestamp
+
+            with(open("telemetry_data.csv", "w", newline='')) as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow([timestamp, "Distance", "Velocity", "Acceleration", "RPM"])  # Write header
+                print(timestamp, "Distance", "Velocity", "Acceleration", "RPM")  # Example of writing telemetry data to CSV
+
         else:
             print("Invalid choice. Please try again.")
 
 
 
+def calculations(): #NEEDS WORK
+    velocity = distance / time
+    acceleration = velocity / time
 
-with(open("telemetry_data.csv", "w", newline='')) as csvfile:
-    writer = csv.write(csvfile)
-    writer.writerow([#Whatever the metrics are])
+    # Code to perform calculations on the telemetry data
+
+
     
 
 GRAFANA_URL = "http://localhost:3000/" # Your Grafana URL
