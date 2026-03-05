@@ -1,7 +1,11 @@
 import serial
 import csv
 import time
+import os #acts as a bridge between python and operating system windoes, os, mac
 
+# SD Card path configuration (adjust drive letter as needed)
+SD_CARD_PATH = "E:/"  # Change to your SD card drive letter (D:/, E:/, etc.)
+CSV_FILE_PATH = os.path.join(SD_CARD_PATH, "telemetry_data.csv")
 
 telemetry_running = False
 
@@ -35,7 +39,7 @@ def telem_control():
             print("Saving log to CSV...")
             timestamp = time.time()  # Example of getting the current timestamp
 
-            with(open("telemetry_data.csv", "w", newline='')) as csvfile:
+            with(open(CSV_FILE_PATH, "w", newline='')) as csvfile:
                 writer = csv.writer(csvfile)
                 writer.writerow([timestamp, "Distance", "Velocity", "Acceleration", "RPM"])  # Write header
                 print(timestamp, "Distance", "Velocity", "Acceleration", "RPM")  # Example of writing telemetry data to CSV
