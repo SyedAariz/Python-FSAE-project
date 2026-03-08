@@ -3,16 +3,18 @@ import csv
 import time
 import os #acts as a bridge between python and operating system windoes, os, mac
 
+
+GRAFANA_URL = "http://localhost:3000/" # Your Grafana URL
+GRAFANA_API_KEY = "GRAFANA_KEY"  # Your Grafana API key with permissions to push to live stream
+LIVE_STREAM = "f1_telemetry" # Whatever you want to call your stream
+
+
 # SD Card path configuration (adjust drive letter as needed)
 SD_CARD_PATH = "E:/"  # Change to your SD card drive letter (D:/, E:/, etc.)
 CSV_FILE_PATH = os.path.join(SD_CARD_PATH, "telemetry_data.csv")
 
-telemetry_running = False
 
-
-def arduino_read():
-
-    port = serial.Serial('COM3', 9600)  # Update with your serial port and baud rate
+port = serial.Serial('COM3', 115200)  # Update with your serial port and baud rate
 
 
 
@@ -38,28 +40,50 @@ def telem_control():
         elif choice == 3:
             print("Saving log to CSV...")
             timestamp = time.time()  # Example of getting the current timestamp
+            data_logging(writer, csvfile)  # Call the data logging function to read from serial and write to CSV
+            save_to_csv()  # Call the function to save data to CSV
 
-            with(open(CSV_FILE_PATH, "w", newline='')) as csvfile:
-                writer = csv.writer(csvfile)
-                writer.writerow([timestamp, "Distance", "Velocity", "Acceleration", "RPM"])  # Write header
-                print(timestamp, "Distance", "Velocity", "Acceleration", "RPM")  # Example of writing telemetry data to CSV
+def save_to_csv():
 
-        else:
-            print("Invalid choice. Please try again.")
+    with(open(CSV_FILE_PATH, "a", newline='')) as csvfile:
+        timestamp = time.time()  # Get the current timestamp
+        writer = csv.writer(csvfile)
+        writer.writerow([timestamp, "Voltage", "Distance", "Velocity", "Acceleration", "RPM"])  # Write header
+        print(timestamp, "Distance", "Velocity", "Acceleration", "RPM")  # Example of writing telemetry data to CSV
+        data_logging(writer, csvfile)
+
+
+def data_logging(writer, csvfile):
+    while telemetry_running:
+        line = port.readline().decode('utf-8').strip()  # Read a line from the serial port
+        if line:
+            print(line)  # Print the telemetry data to the console
+            
+            try:
+                Voltage = float(line.split("=")[1])  # Example of parsing voltage from the telemetry data
+                timestamp = time.time()  # Get the current timestamp
+                writer.writerow([timestamp, Voltage])  # Write timestamp and voltage to CSV. Need to write more.
+                csvfile.flush()  # Ensure data is written to the file
+            except:
+                pass
+
+       
 
 
 
-def calculations(): #NEEDS WORK
-    velocity = distance / time
-    acceleration = velocity / time
+def calculations(voltage): #NEEDS WORK
+    position = (voltage/3.3) * max_distance #How do we get max distance? We can set it to 100 for now, but we need to figure out how to get it from the telemetry data
+    displacement = position - initial_position #initial position can be set to 0
+    
+    velocity = position / time.stamp()  # Example of calculating velocity using position and time
+    acceleration = velocity / time.stamp()  # Example of calculating acceleration using velocity and time
 
     # Code to perform calculations on the telemetry data
 
 
     
 
-GRAFANA_URL = "http://localhost:3000/" # Your Grafana URL
-GRAFANA_API_KEY = "sa-1-telemetry-dashboard-a3a58f0b-6b33-454a-842b-8dd1d499a844"  # Your Grafana API key with permissions to push to live stream
-LIVE_STREAM = "f1_telemetry" # Whatever you want to call your stream
+if __name__ == "__main__":
+    telem_control()
 
 
