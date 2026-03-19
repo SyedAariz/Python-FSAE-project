@@ -5,8 +5,8 @@ import time
 import os #acts as a bridge between python and operating system windoes, os, mac
 
 
-GRAFANA_URL = "http://localhost:3000/" # Your Grafana URL
-GRAFANA_API_KEY = "GRAFANA_KEY"  # Your Grafana API key with permissions to push to live stream
+GRAFANA_URL = "http://localhost:3000" # Your Grafana URL
+GRAFANA_API_KEY = "eyJrIjoieEJLNW9jNkZaMXB1a0dGRzlqZXYxY0UzMEt2cld3OUciLCJuIjoidGVsZW1ldHJ5IiwiaWQiOjF"  # Your Grafana API key with permissions to push to live stream
 LIVE_STREAM = "telemetry" # Whatever you want to call your stream
 
 grafana_headers = {
@@ -16,55 +16,46 @@ grafana_headers = {
 
 
 # SD Card path configuration (adjust drive letter as needed)
-SD_CARD_PATH = "E:/"  # Change to your SD card drive letter (D:/, E:/, etc.)
+SD_CARD_PATH = "."  # Change to your SD card drive letter (D:/, E:/, etc.)
 CSV_FILE_PATH = os.path.join(SD_CARD_PATH, "telemetry_data.csv")
 
 
-port = serial.Serial('COM3', 115200)  # Update with your serial port and baud rate
+port = serial.Serial('/dev/cu.usbserial-0001', 115200)  # Update with your serial port and baud rate
 
 
-
+telemetry_running = False  # Flag to control telemetry state
 
 
 def save_to_csv():
 
-    with(open(CSV_FILE_PATH, "a", newline='')) as csvfile:
-        timestamp = time.time()  # Get the current timestamp
+    if not os.path.exists(CSV_FILE_PATH):
+        with open(CSV_FILE_PATH, "a", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Timestamp", "Voltage", "Distance", "Velocity", "Acceleration", "RPM"])
+            print("CSV header written")
+
+
+def data_logging(voltage):
+    timestamp = time.time()
+
+    with open(CSV_FILE_PATH, "a", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([timestamp, "Voltage", "Distance", "Velocity", "Acceleration", "RPM"])  # Write header
-        print(timestamp, "Distance", "Velocity", "Acceleration", "RPM")  # Example of writing telemetry data to CSV
-        data_logging(writer, csvfile)
-
-
-def data_logging(writer, csvfile):
-    while telemetry_running:
-        line = port.readline().decode('utf-8').strip()  # Read a line from the serial port
-        if line:
-            print(line)  # Print the telemetry data to the console
-            
-            try:
-                Voltage = float(line.split("=")[1])  # Example of parsing voltage from the telemetry data
-                timestamp = time.time()  # Get the current timestamp
-                writer.writerow([timestamp, Voltage])  # Write timestamp and voltage to CSV. Need to write more.
-                csvfile.flush()  # Ensure data is written to the file
-            except:
-                pass
+        writer.writerow([timestamp, voltage])
 
        
-def grafana(data):
+def grafana(line):
     # ---- Grafana Live push (true streaming) ----
             # We use Grafana Live features to push real-time data
-    
-    line = (
-        f"telemetry"
-                f"m_voltage={data["Voltage"]}"        
-            )
 
     try:
+        data = (
+        f"telemetry"
+                f" Voltage={line}"        
+            )
         requests.post(
             f"{GRAFANA_URL}/api/live/push/{LIVE_STREAM}",
             headers=grafana_headers,
-            data=line,
+            data=data,
             timeout=0.05,
         )
     except requests.exceptions.RequestException:
@@ -82,30 +73,48 @@ def grafana(data):
 
 def telem_control():
     global telemetry_running
+
+    telemetry_running = False
+
     while True:
-        print("1 - Start Telemetry")
-        print("2 - Stop Telemetry")
-        print("3 - Save Log to CSV")
-        choice = int(input("Enter your choice: "))
+        if not telemetry_running:
+            print("1 - Start Telemetry")
+            print("2 - Stop Telemetry")
+            print("3 - Save Log to CSV")
 
+            choice = int(input("Enter your choice: "))
 
+            if choice == 1:
+                print("Starting telemetry...")
+                telemetry_running = True
 
-        if choice == 1:
-            print("Starting telemetry...")
-            telemetry_running = True
-            grafana(data)  # Call the function to push data to Grafana Live
-            # Code to start telemetry
-        elif choice == 2:
-            print("Stopping telemetry...")
-            telemetry_running = False
+            elif choice == 2:
+                print("Telemetry already stopped.")
 
-            # Code to stop telemetry
-        elif choice == 3:
-            print("Saving log to CSV...")
-            timestamp = time.time()  # Example of getting the current timestamp
-            data_logging(writer, csvfile)  # Call the data logging function to read from serial and write to CSV
-            save_to_csv()  # Call the function to save data to CSV
+            elif choice == 3:
+                print("Saving log to CSV...")
+                save_to_csv()
 
+        else:
+            line = port.readline().decode('utf-8', errors="ignore").strip()
+
+            if line:
+                print(line)
+
+                if "travel_mm=" in line:
+                    try:
+                        value = float(line.split("travel_mm=")[1].split()[0])
+                    except:
+                        continue
+
+                    grafana(value)
+                    data_logging(value)
+
+            # allow stopping
+            if port.in_waiting == 0:
+                if input("Press 2 to stop telemetry: ") == "2":
+                    print("Stopping telemetry...")
+                    telemetry_running = False
 
     
 
