@@ -6,7 +6,7 @@ import os #acts as a bridge between python and operating system windoes, os, mac
 
 
 GRAFANA_URL = "http://localhost:3000" # Your Grafana URL
-GRAFANA_API_KEY = "GRAFANA_KEY"  # Your Grafana API key with permissions to push to live stream
+GRAFANA_API_KEY = "----"  # Your Grafana API key with permissions to push to live stream
 LIVE_STREAM = "telemetry" # Whatever you want to call your stream
 
 grafana_headers = {
