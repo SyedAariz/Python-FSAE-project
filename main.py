@@ -71,6 +71,35 @@ def grafana(line):
 
     # Code to perform calculations on the telemetry data
 
+
+def calculations(travel_mm):
+    global begin_velocity, begin_position, prev_time, initial_position
+    current_time = time.time()
+    position = travel_mm
+
+
+    if initial_position is None:
+        initial_position = position
+        prev_position = position
+        prev_time = current_time
+    return position, 0.0, 0.0, 0.0
+
+
+delta_time = current_time - prev_time
+    if delta_time == 0:
+        return posiition, 0.0, 0.0, 0.0
+
+
+
+    velocity = (position - prev_position) / delta_time          # mm/s
+    acceleration = (velocity - begin_velocity) / delta_time      # mm/s²
+
+
+    prev_position = position
+    prev_time = current_time
+    prev_velocity = velocity
+    return position, velocity, acceleration
+
 def telem_control():
     global telemetry_running
 
