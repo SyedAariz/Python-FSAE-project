@@ -61,6 +61,7 @@ def grafana(line):
             data=data,
             timeout=0.05,
         )
+        time.sleep(0.1)
     except requests.exceptions.RequestException:
         pass  # never block telemetry
 
@@ -82,6 +83,25 @@ def run_funcs():
 
     except Exception as e:
         print("Error:", e)
+
+def replay_csv():
+    with open(CSV_FILE_PATH, "r") as csvfile:
+        reading = csv.reader(csvfile)
+        next(reading, None)
+
+        for row in reading:
+            try:
+                travel_mm = float(row[0])
+                print(f"Replaying: {travel_mm}")
+                grafana(travel_mm)
+            except Exception as e:
+                print("Error", e)
+
+
+
+            
+
+
 
 
 #def calculations(voltage): #NEEDS WORK
@@ -125,6 +145,7 @@ def run_funcs():
 
 
 if __name__ == "__main__":
+    replay_csv()
     while True:
         run_funcs()
 
