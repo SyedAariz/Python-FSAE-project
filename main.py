@@ -23,6 +23,8 @@ CSV_FILE_PATH = os.path.join(SD_CARD_PATH, "telemetry_data.csv")
 port = serial.Serial('/dev/cu.usbserial-0001', 115200)  # Update with your serial port and baud rate
 
 
+
+
 telemetry_running = False  # Flag to control telemetry state
 
 
@@ -30,17 +32,18 @@ def save_to_csv():
 
     if not os.path.exists(CSV_FILE_PATH):
         with open(CSV_FILE_PATH, "a", newline="") as csvfile:
+            #line = port.readline().decode().strip()
             writer = csv.writer(csvfile)
-            writer.writerow(["Timestamp", "Voltage", "Distance", "Velocity", "Acceleration", "RPM"])
+            writer.writerow(["Travel_mm"])  # Write header only if file is new
             print("CSV header written")
 
 
 def data_logging(voltage):
-    timestamp = time.time()
+    
 
     with open(CSV_FILE_PATH, "a", newline="") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([timestamp, voltage])
+        writer.writerow([voltage])
 
        
 def grafana(line):
@@ -50,7 +53,7 @@ def grafana(line):
     try:
         data = (
         f"telemetry"
-                f" Voltage={line}"        
+                f" Travel_mm={line}"        
             )
         requests.post(
             f"{GRAFANA_URL}/api/live/push/{LIVE_STREAM}",
@@ -58,8 +61,47 @@ def grafana(line):
             data=data,
             timeout=0.05,
         )
+        time.sleep(0.1)
     except requests.exceptions.RequestException:
         pass  # never block telemetry
+
+def run_funcs():
+    save_to_csv()
+
+    try:
+        line = port.readline().decode(errors="ignore").strip()
+
+        if "travel_mm=" in line:
+            # Extract travel_mm value
+            travel_part = line.split("travel_mm=")[1].split()[0]
+            voltage = float(travel_part)
+
+            print(f"Travel_mm: {voltage}")
+
+            data_logging(voltage)
+            grafana(voltage)
+
+    except Exception as e:
+        print("Error:", e)
+
+def replay_csv():
+    with open(CSV_FILE_PATH, "r") as csvfile:
+        reading = csv.reader(csvfile)
+        next(reading, None)
+
+        for row in reading:
+            try:
+                travel_mm = float(row[0])
+                print(f"Replaying: {travel_mm}")
+                grafana(travel_mm)
+            except Exception as e:
+                print("Error", e)
+
+
+
+            
+
+
 
 
 #def calculations(voltage): #NEEDS WORK
@@ -72,82 +114,39 @@ def grafana(line):
     # Code to perform calculations on the telemetry data
 
 
-def calculations(travel_mm):
-    global begin_velocity, begin_position, prev_time, initial_position
-    current_time = time.time()
-    position = travel_mm
+#def calculations(travel_mm):
+    #global begin_velocity, begin_position, prev_time, initial_position
+    #current_time = time.time()
+    #position = travel_mm
 
 
-    if initial_position is None:
-        initial_position = position
-        prev_position = position
-        prev_time = current_time
-    return position, 0.0, 0.0, 0.0
+    #if initial_position is None:
+        #initial_position = position
+        #prev_position = position
+        #prev_time = current_time
+    #return position, 0.0, 0.0, 0.0
 
 
-delta_time = current_time - prev_time
-    if delta_time == 0:
-        return posiition, 0.0, 0.0, 0.0
+    #delta_time = current_time - prev_time
+        #if delta_time == 0:
+            #return posiition, 0.0, 0.0, 0.0
 
 
 
-    velocity = (position - prev_position) / delta_time          # mm/s
-    acceleration = (velocity - begin_velocity) / delta_time      # mm/s²
+    #velocity = (position - prev_position) / delta_time          # mm/s
+    #acceleration = (velocity - begin_velocity) / delta_time      # mm/s²
 
 
-    prev_position = position
-    prev_time = current_time
-    prev_velocity = velocity
-    return position, velocity, acceleration
+    #prev_position = position
+    #prev_time = current_time
+    #prev_velocity = velocity
+    #return position, velocity, acceleration
 
-def telem_control():
-    global telemetry_running
 
-    telemetry_running = False
-
-    while True:
-        if not telemetry_running:
-            print("1 - Start Telemetry")
-            print("2 - Stop Telemetry")
-            print("3 - Save Log to CSV")
-
-            choice = int(input("Enter your choice: "))
-
-            if choice == 1:
-                print("Starting telemetry...")
-                telemetry_running = True
-
-            elif choice == 2:
-                print("Telemetry already stopped.")
-
-            elif choice == 3:
-                print("Saving log to CSV...")
-                save_to_csv()
-
-        else:
-            line = port.readline().decode('utf-8', errors="ignore").strip()
-
-            if line:
-                print(line)
-
-                if "travel_mm=" in line:
-                    try:
-                        value = float(line.split("travel_mm=")[1].split()[0])
-                    except:
-                        continue
-
-                    grafana(value)
-                    data_logging(value)
-
-            # allow stopping
-            if port.in_waiting == 0:
-                if input("Press 2 to stop telemetry: ") == "2":
-                    print("Stopping telemetry...")
-                    telemetry_running = False
-
-    
 
 if __name__ == "__main__":
-    telem_control()
+    replay_csv()
+    while True:
+        run_funcs()
 
 
